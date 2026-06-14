@@ -9,6 +9,7 @@
     body { font-family: sans-serif; text-align: center; padding: 40px 20px; background: #f0f2f5; }
     .card { background: white; padding: 30px; border-radius: 12px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     button { background: #007aff; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 20px; }
+    button:disabled { background: #ccc; }
   </style>
 </head>
 <body>
@@ -19,9 +20,28 @@
     <p id="status" style="margin-top:20px; color:#666; font-size:14px; word-break:break-all;"></p>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging-compat.js"></script>
+
   <script>
     const authBtn = document.getElementById('auth-btn');
     const statusDiv = document.getElementById('status');
+
+    // 1. Firebaseの初期化設定（あなたのFirebaseの画面からコピペして差し替えても動きますが、通知だけなら最小限でOK）
+    // プロジェクトIDは画像にあった「test-6282c」にセットしてあります
+    const firebaseConfig = {
+      projectId: "test-6282c",
+      messagingSenderId: "あなたのMESSAGING_SENDER_ID" // ⚠️ここだけ注意（下記参照）
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    let messaging = null;
+    
+    try {
+      messaging = firebase.messaging();
+    } catch (e) {
+      console.log("Firebase Messaging はこのブラウザ（またはホーム画面以外）ではサポートされていません。");
+    }
 
     // Service Workerの登録
     if ('serviceWorker' in navigator) {
@@ -29,25 +49,42 @@
     }
 
     authBtn.addEventListener('click', async () => {
+      // 2. ブラウザに通知許可を求める
       const permission = await Notification.requestPermission();
+      
       if (permission === 'granted') {
-        statusDiv.innerText = '通知許可OK！宛先をサーバーに登録中...';
+        statusDiv.innerText = '通知許可OK！iPhoneの宛先トークンを取得中...';
         
-        const reg = await navigator.serviceWorker.ready;
-        // Firebase等で発行した公開鍵（VAPIDキー）をここに入れます
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: 'YOUR_PUBLIC_VAPID_KEY' 
-        });
+        try {
+          // 3. FirebaseからこのiPhone専用のトークン（宛先）を発行してもらう
+          const reg = await navigator.serviceWorker.ready;
+          
+          // ⚠️注意：FCMの設定画面にある「ウェブプッシュ証明書」の公開鍵（VAPID）をここに入れます
+          const token = await messaging.getToken({ 
+            serviceWorkerRegistration: reg,
+            vapidKey: 'YOUR_FIREBASE_PUBLIC_VAPID_KEY' 
+          });
 
-        // サーバー（API）にあなたのiPhoneの宛先トークンを送りつける
-        await fetch('/api/send-push', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subscription: sub, registerOnly: true })
-        });
+          if (token) {
+            statusDiv.innerText = 'トークン取得完了！Vercelサーバーに登録しています...';
 
-        statusDiv.innerHTML = '<b>登録完了！</b><br>これでサーバーからいつでもこのiPhoneに通知を飛ばせます。';
+            // 4. Vercelのサーバー（API）にトークンを送りつける
+            const response = await fetch('/api/send-push', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: token, registerOnly: true })
+            });
+
+            const resData = await response.json();
+            statusDiv.innerHTML = `<b>登録完了！</b><br>サーバーの返事: ${resData.message}`;
+          } else {
+            statusDiv.innerText = 'トークンが取得できませんでした。';
+          }
+
+        } catch (err) {
+          statusDiv.innerText = 'エラーが発生しました: ' + err;
+          console.error(err);
+        }
       } else {
         statusDiv.innerText = '通知が拒否されました。';
       }
