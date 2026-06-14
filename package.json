@@ -1,9 +1,7 @@
 {
   "name": "pwa-notification-api",
   "version": "1.0.0",
-  "description": "PWA通知アプリのバックエンド",
-  "main": "api/send-push.js",
   "dependencies": {
-    "firebase-admin": "^12.0.0"
+    "web-push": "^3.6.0"
   }
 }
