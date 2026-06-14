@@ -31,7 +31,7 @@
     // プロジェクトIDは画像にあった「test-6282c」にセットしてあります
     const firebaseConfig = {
       projectId: "test-6282c",
-      messagingSenderId: "あなたのMESSAGING_SENDER_ID" // ⚠️ここだけ注意（下記参照）
+      messagingSenderId: "242418429027" // ⚠️ここだけ注意（下記参照）
     };
     
     firebase.initializeApp(firebaseConfig);
@@ -62,7 +62,7 @@
           // ⚠️注意：FCMの設定画面にある「ウェブプッシュ証明書」の公開鍵（VAPID）をここに入れます
           const token = await messaging.getToken({ 
             serviceWorkerRegistration: reg,
-            vapidKey: 'YOUR_FIREBASE_PUBLIC_VAPID_KEY' 
+            vapidKey: 'BDKp3CQ6M5FUB-M_RskkSbtCpR2vGePixAlZhvbkCengJXGfT2RJOmgG9EtGRIcE-1D6HIZMaz_jTzfrto04phk' 
           });
 
           if (token) {
