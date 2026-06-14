@@ -1,47 +1,37 @@
-const admin = require('firebase-admin');
+const webpush = require('web-push');
 
-// サーバーレス関数が実行されるたびに何度も初期化されるのを防ぐ
-if (!admin.apps.length) {
-  try {
-    // 1. Vercelの設定画面から、貼り付けたJSONの文字列を取得してオブジェクトに変換する
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
-    console.log("Firebaseの初期化に成功しました。");
-  } catch (error) {
-    console.error('Firebaseの初期化に失敗しました。環境変数の値（JSON）が正しいか確認してください:', error);
-  }
-}
+// 💡 ここにあなたの「公開鍵」を直接書く（公開鍵は流出しても安全な鍵です）
+const PUBLIC_VAPID_KEY = 'eu9a6qDl6s_qTku-C0gHhTl4dm4CoZuQBRhh6AF2oxCJHfsCpNf6T0bVJAc6OyP3ZpWhKjFURqHSOfClX0wUEmg';
 
-// 簡易的にトークンを記憶する用（テスト用）
-let savedToken = null;
+webpush.setVapidDetails(
+  'mailto:rikku5910@outlook.com', // あなたのメールアドレス（形式だけでOK）
+  PUBLIC_VAPID_KEY,
+  process.env.VAPID_PRIVATE_KEY // Vercelの隠しポケットから秘密鍵を読み込む
+);
+
+let savedSubscription = null; // テスト用の宛先一時保存
 
 export default async function handler(req, res) {
-  // iPhone側から送られてきたトークンを保存する処理
+  // 1. iPhone側から送られてきた宛先を保存する
   if (req.method === 'POST' && req.body.registerOnly) {
-    savedToken = req.body.token;
-    return res.status(200).json({ message: '宛先トークンの登録に成功！' });
+    savedSubscription = req.body.subscription;
+    return res.status(200).json({ message: '宛先の登録に成功！' });
   }
 
-  // URLが叩かれた時の処理（通知送信）
+  // 2. URLが叩かれた時（通知送信）
   if (req.method === 'GET') {
-    if (!savedToken) {
+    if (!savedSubscription) {
       return res.status(400).json({ error: '通知を送る相手（iPhone）がまだ登録されていません。' });
     }
 
-    const message = {
-      notification: {
-        title: '自動通知のテスト',
-        body: '環境変数を使った安全なシステムから自動送信されました！'
-      },
-      token: savedToken
-    };
+    const payload = JSON.stringify({
+      title: 'シンプルな自動通知',
+      body: 'Firebaseなし、VAPIDの鍵だけで自動送信に成功しました！'
+    });
 
     try {
-      await admin.messaging().send(message);
-      return res.status(200).json({ success: true, message: 'iPhoneへの通知送信に成功しました！' });
+      await webpush.sendNotification(savedSubscription, payload);
+      return res.status(200).json({ success: true, message: '通知送信に成功！' });
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
