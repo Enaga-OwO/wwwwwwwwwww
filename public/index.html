@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="manifest" href="/manifest.json">
-  <title>PWA 自動通知テスト</title>
+  <title>PWA シンプル通知テスト</title>
   <style>
     body { font-family: sans-serif; text-align: center; padding: 40px 20px; background: #f0f2f5; }
     .card { background: white; padding: 30px; border-radius: 12px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -14,81 +14,94 @@
 </head>
 <body>
   <div class="card">
-    <h2>PWA 自動通知アプリ</h2>
-    <p>まずは下のボタンを押して通知を許可してください。</p>
+    <h2>PWA シンプル通知アプリ</h2>
+    <p>ボタンを押して通知を許可してください。</p>
     <button id="auth-btn">通知を許可する</button>
-    <p id="status" style="margin-top:20px; color:#666; font-size:14px; word-break:break-all;"></p>
+    <p id="status" style="margin-top:20px; color:#666; font-size:14px; word-break:break-all; text-align: left;"></p>
   </div>
-
-  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging-compat.js"></script>
 
   <script>
     const authBtn = document.getElementById('auth-btn');
     const statusDiv = document.getElementById('status');
 
-    // 1. Firebaseの初期化設定（あなたのFirebaseの画面からコピペして差し替えても動きますが、通知だけなら最小限でOK）
-    // プロジェクトIDは画像にあった「test-6282c」にセットしてあります
-    const firebaseConfig = {
-      projectId: "test-6282c",
-      messagingSenderId: "242418429027" // ⚠️ここだけ注意（下記参照）
-    };
-    
-    firebase.initializeApp(firebaseConfig);
-    let messaging = null;
-    
-    try {
-      messaging = firebase.messaging();
-    } catch (e) {
-      console.log("Firebase Messaging はこのブラウザ（またはホーム画面以外）ではサポートされていません。");
-    }
-
-    // Service Workerの登録
+    // 1. Service Workerの登録
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js');
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => console.log('Service Worker 登録完了'))
+        .catch(err => console.error('Service Worker 登録失敗:', err));
     }
 
+    // 2. ボタンを押したときの処理
     authBtn.addEventListener('click', async () => {
-      // 2. ブラウザに通知許可を求める
-      const permission = await Notification.requestPermission();
+      statusDiv.innerHTML = '通知の許可を確認中...';
       
-      if (permission === 'granted') {
-        statusDiv.innerText = '通知許可OK！iPhoneの宛先トークンを取得中...';
+      try {
+        // ブラウザに通知許可を求める
+        const permission = await Notification.requestPermission();
         
-        try {
-          // 3. FirebaseからこのiPhone専用のトークン（宛先）を発行してもらう
+        if (permission === 'granted') {
+          statusDiv.innerHTML = '通知許可OK！宛先（Subscription）を生成中...';
+          
+          // Service Workerの準備ができるのを待つ
           const reg = await navigator.serviceWorker.ready;
           
-          // ⚠️注意：FCMの設定画面にある「ウェブプッシュ証明書」の公開鍵（VAPID）をここに入れます
-          const token = await messaging.getToken({ 
-            serviceWorkerRegistration: reg,
-            vapidKey: 'BDKp3CQ6M5FUB-M_RskkSbtCpR2vGePixAlZhvbkCengJXGfT2RJOmgG9EtGRIcE-1D6HIZMaz_jTzfrto04phk' 
-          });
-
-          if (token) {
-            statusDiv.innerText = 'トークン取得完了！Vercelサーバーに登録しています...';
-
-            // 4. Vercelのサーバー（API）にトークンを送りつける
-            const response = await fetch('/api/send-push', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token: token, registerOnly: true })
-            });
-
-            const resData = await response.json();
-            statusDiv.innerHTML = `<b>登録完了！</b><br>サーバーの返事: ${resData.message}`;
-          } else {
-            statusDiv.innerText = 'トークンが取得できませんでした。';
+          if (!reg.pushManager) {
+            throw new Error('このブラウザ/環境は PushManager（Webプッシュ通知機能）に対応していません。iPhoneの場合は必ず「ホーム画面に追加」してから起動してください。');
           }
 
-        } catch (err) {
-          statusDiv.innerText = 'エラーが発生しました: ' + err;
-          console.error(err);
+          // ⚠️ 注目：ここにPythonのa.pyで出力された「公開鍵（Public Keyの1行）」を貼り付けます
+          const PUBLIC_VAPID_KEY = 'あなたの作った公開鍵（1行の文字列）をここに貼る';
+
+          // 宛先情報（Subscription）を発行する
+          const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+          });
+
+          statusDiv.innerHTML = '宛先生成成功！Vercelサーバーに登録しています...';
+
+          // VercelのAPI（サーバー）に宛先を送りつける
+          const response = await fetch('/api/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscription: sub, registerOnly: true })
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`サーバー登録エラー (Status: ${response.status}): ${errText}`);
+          }
+
+          const resData = await response.json();
+          statusDiv.innerHTML = `<b style="color: green;">登録完了！</b><br>サーバーからの返事: ${resData.message}`;
+
+        } else {
+          statusDiv.innerHTML = '<span style="color: orange;">通知が拒否されました。設定アプリから通知を許可してください。</span>';
         }
-      } else {
-        statusDiv.innerText = '通知が拒否されました。';
+      } catch (err) {
+        // 💥 万が一エラーが起きたら、詳細原因を画面にドカンと赤文字で表示する
+        statusDiv.innerHTML = `
+          <span style="color: red; font-weight: bold;">【エラーが発生しました】</span><br>
+          <span style="color: red; font-size: 13px;">
+            <b>理由:</b> ${err.message || err.toString()}<br><br>
+            <b>詳細コード:</b><br>${err.stack ? err.stack.replace(/\n/g, '<br>') : 'スタック情報なし'}
+          </span>
+        `;
+        console.error(err);
       }
     });
+
+    // 💡 VAPIDの鍵をブラウザが読める形式に変換するおまじない（必須関数）
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
   </script>
 </body>
 </html>
