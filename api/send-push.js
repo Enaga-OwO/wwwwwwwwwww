@@ -1,7 +1,7 @@
 const webpush = require('web-push');
 
 // 💡 ブラウザのコンソールで作った本物の公開鍵
-const PUBLIC_VAPID_KEY = 'BMXoxnbkWEt8aC-S0X1uk4BeKqznuSTxRlkLeJV-7krwUdXJs7hRIDaOlgYzePFT-wimxRJSRxgLGhGkuomU6r8';
+const PUBLIC_VAPID_KEY = 'BOpmtRvUOw1ko2WbyNElTnGtuuO1xsrE5WJ-wLivdpbgOQCrSPdSrTw_1mX9Js0BPEe9NNo87F9oxcXCa8wiVug';
 
 try {
   webpush.setVapidDetails(
