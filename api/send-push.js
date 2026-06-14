@@ -1,7 +1,7 @@
 const webpush = require('web-push');
 
 // 💡 ここにあなたの「公開鍵」を直接書く（公開鍵は流出しても安全な鍵です）
-const PUBLIC_VAPID_KEY = 'BGrYJQwNCLaxCjWT_-mdpMym6TjR1yG7JGoxyn7vZ3AvzUv15H9n_v6_CmXM_6ow9BDvt_sxAuk92P_FO9fhsZo';
+const PUBLIC_VAPID_KEY = 'BMXoxnbkWEt8aC-S0X1uk4BeKqznuSTxRlkLeJV-7krwUdXJs7hRIDaOlgYzePFT-wimxRJSRxgLGhGkuomU6r8';
 
 webpush.setVapidDetails(
   'mailto:rikku5910@outlook.com', // あなたのメールアドレス（形式だけでOK）
