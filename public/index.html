@@ -50,7 +50,8 @@
           }
 
           // ⚠️ 注目：ここにPythonのa.pyで出力された「公開鍵（Public Keyの1行）」を貼り付けます
-          const PUBLIC_VAPID_KEY = 'あなたの作った公開鍵（1行の文字列）をここに貼る';
+          // index.html側も同じ鍵にする
+const PUBLIC_VAPID_KEY = 'eu9a6qDl6s_qTku-C0gHhTl4dm4CoZuQBRhh6AF2oxCJHfsCpNf6T0bVJAc6OyP3ZpWhKjFURqHSOfClX0wUEmg';
 
           // 宛先情報（Subscription）を発行する
           const sub = await reg.pushManager.subscribe({
