@@ -15,6 +15,9 @@ try {
 
 let savedSubscription = null;
 
+
+webpush.hasVapidAuthentication = true; 
+
 export default async function handler(req, res) {
   // 1. iPhone側から送られてきた宛先を保存する
   if (req.method === 'POST' && req.body.registerOnly) {
