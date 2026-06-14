@@ -1,6 +1,6 @@
 const webpush = require('web-push');
 
-// 💡 ブラウザのコンソールで作った【確定版】の公開鍵
+// 💡 ブラウザのコンソールで作った【最終確定版】の公開鍵
 const PUBLIC_VAPID_KEY = 'BHmwXexj07aPhov43-UrKLuYQ0oEEgIEpTmbR62Cg-WUp255LjWoo28j94VQuWY9LzgcKIn_Y27-BN_cA7f3XMg';
 
 try {
@@ -30,25 +30,12 @@ export default async function handler(req, res) {
 
     const payload = JSON.stringify({
       title: 'シンプルな自動通知',
-      body: 'エラーをすべて乗り越えて、ついに通知が届きました！'
+      body: 'すべてのエラーを乗り越えて、ついに通知が届きました！'
     });
 
     try {
-      // 💡 【超重要：Windows/Vercel環境での401エラーを絶対殺す設定】
-      // Appleのサーバーに送るリクエストのヘッダーを、手動で完璧に構築して上書きします
-      const options = {
-        headers: {
-          'Authorization': webpush.getVapidHeaders(
-            savedSubscription.endpoint,
-            'mailto:rikku5910@outlook.com',
-            PUBLIC_VAPID_KEY,
-            process.env.VAPID_PRIVATE_KEY
-          ).Authorization
-        }
-      };
-
-      // 自作した完璧なヘッダー（options）を添えて通知を送信！
-      await webpush.sendNotification(savedSubscription, payload, options);
+      // 💡 余計なoptionsは一切付けず、シンプルに宛先と中身だけを渡して送信します
+      await webpush.sendNotification(savedSubscription, payload);
       
       return res.status(200).json({ success: true, message: '通知送信に成功！' });
     } catch (error) {
